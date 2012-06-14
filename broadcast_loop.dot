@@ -1,0 +1,5 @@
+digraph {
+graph[rankdir=LR]
+node[shape=circle, color=blue]
+A; B; C; A -> C [label = "1", color = green]; C -> B [label = "2", color = green]; B -> C [label = "3", color = red]; C -> B [label = "4", color = red]
+}

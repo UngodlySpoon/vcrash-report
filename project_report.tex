@@ -136,6 +136,15 @@ Please make special note that we do not assume the presence of any dedicated inf
 While such infrastructure may increase the efficiency and effectiveness of our protocol, it may not always be available and, in the case of cellular networks, may not provide the latency that such fast dissemination requires.
 Therefore, we aim to accomplish our goal only through the ad-hoc network of vehicle-mounted radios wherever possible.
 
+Also, we refer to messages in one of three ways, although they all use the same format:
+
+\begin{enumerate}
+  \item A message originating from one of the vehicle(s) involved in the crash, which we refer to as the \emph{victim}
+  \item A message originating from one of the vehicle(s) that \emph{witnessed} the crash
+  \item A message that is being forwarded by any node in the network, possibly including a victim or witness
+\end{enumerate}
+
+
 \subsection{Assumptions}
 
 The design of our system assumes that several underlying hardware and software components have already been developed.
@@ -145,6 +154,7 @@ Second, to facilitate crash event detection, the sensor inputs, such as video an
 While the details of actually implementing such event detection is outside of the scope of this paper, we envision it to involve computer vision and machine learning algorithms that associate sudden changes in motion of nearby vehicles to a likely crash event.
 Third, for the purpose of preventing spoofed crash data, we assume that the vehicle sensors are secure and tamper-proof.
 When they detect that the vehicle has crashed, similar to the way airbag sensors work currently, they must generate unforgeable data that can be authenticated by other vehicles that overhear it during transmission.
+This raw crash data is assumed to be included in a message from the victim as a means of guaranteeing the authenticity of an event.
 Without such sensors, the security of this system is in jeopardy as it relies solely on the participants' honesty for detecting only real events.
 
 \subsection{Dissemination}
@@ -162,7 +172,7 @@ Utilizing these vehicles allows for the message to be propagated behind the even
 Five seconds provides adequate time for vehicles on the opposite side of the highway to move far enough away from the event scene that they can give ample warning to nearby vehicles.
 Furthermore, we assume that after five seconds dedicated infrastructure such as cellular networks or satellite uplinks will be able to notify any nodes that have not been contacted already.
 
-To mitigate \emph{broadcast storms}, flooding the network with many messages, and prevent them from saturating the channel, we include mechanisms for limiting the forwarding of the messages.
+To mitigate \emph{broadcast storms}, which flood the network with many messages, and prevent them from saturating the channel, we include mechanisms for limiting the forwarding of the messages.
 Specifically, we include a time-to-live (TTL) and a unique broadcast ID.
 The TTL was set to 10 in order to prevent the message from persisting too long and reaching too many nodes that were not interested in its contents.
 If we set it to much less than 10, the messages did not seem to reach far enough.
@@ -172,6 +182,29 @@ As shown in Figure~\ref{broadcast_loop}, broadcasting can easily create loops in
 We remedy this by having nodes ignore any messages that they have already seen instead of forwarding them.
 Repeat messages are identified by storing the broadcast ID of recently seen messages and comparing the broadcast IDs of the received message to this collection.
 
+\begin{figure}
+ \includegraphics[width=\linewidth,keepaspectratio=true]{broadcast_loop.png}
+  \caption{\emph{Broadcast Loops}: Edges are labeled in order of message transmission.  After receiving message 2, node B forwards it back to C as message 3, who will then forward it back to B as message 4 and so on...}
+  \label{broadcast_loop}
+\end{figure}
+
+Each message, including the originals, will include the ID of the vehicles that witnessed (and participated in) the crash as well as the location of the event in order to facilitate authenticating the information and avoiding the scene, respectively.
+Because each vehicle that witnesses the crash begins disseminating messages, there could be a large number of duplicate messages detecting the same event that are treated as distinct for the purposes of forwarding.
+This is where data aggregation improves the efficiency of the system.
+
+\subsection{Aggregation}
+
+Instead of allowing each original message to be disseminated separately, we decided to aggregate them together into a single message whenever possible.
+This saves a lot of network overhead by greatly reducing the number of packets that must be transmitted to disseminate the same information.
+When a node receives more than one message that pertains to the same crash (as identified by the victim ID), the IDs of the witnesses are combined together into a single packet before forwarding.
+In this way, each packet contains a subset of IDs corresponding to nodes that witnessed or participated in the event.
+When a node receives such a packet, it may learn more than one ID as compared to only learning one without any aggregation.
+
+In the case of multiple rebroadcasts, nodes will continuously update the packet they are broadcasting during each interval.
+Therefore, if a node learns of another witness, or learns the ID of any crash victim(s), the next packet broadcasted will include this information.
+This does not mean that the counter of how many rebroadcasts should be sent is reset, however, as this could prolong the life of the message to a wasteful point.
+In this manner, forwarded messages typically contain only one or a small number of IDs initially.
+As the message propagates further, aggregation will take place and each message will tend to contain more information about the event.
 
 
 \section{Simulation and Results}
