@@ -165,19 +165,26 @@ In this manner, each possibly impacted vehicle will be notified if an ad-hoc pat
 To address the issue of missing ad-hoc links, whether due to vehicles being out of range or the message being corrupted in the channel, these broadcasts are repeated several times.
 We noted that messages could, and indeed in our simulations did, propagate as far as possible in the local ad-hoc sub-network without reaching all vehicles possibly affected.
 We decided that each vehicle should broadcast the message a total of five times, with one second between each iteration, in order to ensure delivery.
+Additionally, we added a random wait time so that each node would immediately re-broadcast a received packet, but then wait for a random period between 0.5 and 1.5 seconds before beginning the one-broadcast-per-second regimen.
+The intuition of this optimization is that nodes near to each other will receive the packet and therefore likely rebroadcast at the same time.
+If they re-broadcast their subsequent messages at the same time, they are likely to be reaching the same additional nodes.
+By instead staggering these re-broadcast times slightly, while still maintaining an interval of one second within a node, it is more likely that rebroadcasts will reach nodes that are only very briefly in range of this cluster.
+It may also serve to reduce channel contention and spread the network transmission more evenly to prevent spikes in channel usage.
+
 We chose these values because it appeared feasible for a vehicle moving in the opposite direction to enter and exit transmission range quickly enough that one or two corrupted packets might result in it not receiving the message.
 Utilizing these vehicles allows for the message to be propagated behind the event more quickly and effectively, as described in \cite{vanet_dissem}.
 Five seconds provides adequate time for vehicles on the opposite side of the highway to move far enough away from the event scene that they can give ample warning to nearby vehicles.
 Furthermore, we assume that after five seconds dedicated infrastructure such as cellular networks or satellite uplinks will be able to notify any nodes that have not been contacted already.
 
-To mitigate \emph{broadcast storms}, which flood the network with many messages, and prevent them from saturating the channel, we include mechanisms for limiting the forwarding of the messages.
+As shown in Figure~\ref{broadcast_loop}, broadcasting can easily create loops in a network that lead to an infinite amount of traffic being generated.
+To mitigate these \emph{broadcast storms}, which flood the network with many messages, and prevent them from saturating the channel, we include mechanisms for limiting the forwarding of the messages.
 Specifically, we include a time-to-live (TTL) and a unique broadcast ID.
+A TTL is an integer number that represents the maximum number of \emph{hops} that a message should take, that is the number of times it is forwarded by intermediate nodes before it should no longer be forwarded any further.
 The TTL was set to 10 in order to prevent the message from persisting too long and reaching too many nodes that were not interested in its contents.
 If we set it to much less than 10, the messages did not seem to reach far enough.
 Also, with an effective range of approximately 100 meters, a TTL of 10 meant that the message should reach vehicles up to one kilometer away, which was our goal distance as anyone within this extent would approach the crash site very soon.
 Similar to AODV \cite{aodv}, the unique broadcast ID, a combination of the source node's network address and a unique sequence number that it generates locally, is used to prevent loops.
-As shown in Figure~\ref{broadcast_loop}, broadcasting can easily create loops in a network that lead to an infinite amount of traffic being generated.
-We remedy this by having nodes ignore any messages that they have already seen instead of forwarding them.
+A node ignores any messages that it has already seen instead of forwarding them.
 Repeat messages are identified by storing the broadcast ID of recently seen messages and comparing the broadcast IDs of the received message to this collection.
 
 \begin{figure}
@@ -244,11 +251,51 @@ Itani et al. proposed in \cite{slow}, a Secure Bundle protocol, Sec-Bundle, to a
 
 \section{Conclusion}
 
-Many of the known aggregation methods discussed rely on static topologies in order to guarantee convergence. These techniques also calculate very specific aggregation functions that do not necessarily apply to our environment. However, Flajolet-Martin sketch, hierarchical, and cluster based aggregation techniques may be applicable to our application.
+In this paper, we proposed a secure method for quickly aggregating and disseminating information about crash events in VANETs.
+The protocol was implemented in a simulation environment to show its efficacy.
+We determined that our method is effective at reaching all local nodes very quickly even in a variety of traffic conditions.
+By extending the ns3-highway-mobility project, we have also furthered VANET simulation research as our modifications are publicly available for others to benefit from.
+To conclude the paper, we discuss some optimizations and possible future work as well as alternative applications for our protocol.
 
-Data dissemination in static networks is important when a node has content to send to several other nodes. CREW is one protocol in peer-to-peer networks. Habit is a proposed protocol that provides a solution for the dissemination problem in DTNs. Because VANETs are a special case of DTNs, techniques such as this can be applied in our problem domain. The study on dissemination in VANETs gave us important information on how the data should be forwarded to interested vehicles.  Our specific problem would probably merit using the bi-directional approach, however, because there is not as much information contained in a message identifying an event as there is in one identifying individual vehicles and so compression is not a concern.  Instead, the speed at which the data reaches each party is paramount.
+\subsection{Optimizations and Future Work}
 
-Finally, we have to focus on security of VANETs as it will not only affect the information but also the health and life of driver. It also plays an important role in law enforcement, e.g., liability of accidents. The important characteristics of a VANET is it uses location information as a basic parameter, so it is not only vulnerable to general attacks on wireless sensor networks, such as jamming and sybil attacks, but it is also vulnerable to different types of position-based attacks such as wormhole and tunnel attacks. The basic step to solve all the security issues is to support authentication and having tamper resistant security hardware.  These are still open problems in this research domain and so we do not expect to address them in our current focus.
+Although we did not have time to implement them, we considered a few optimizations and extensions to our protocol.
+One involved adapting the forwarding and re-broadcasting mechanism to the number and location of other nodes nearby.
+If a node is located within the center of a node cluster that it knows has already received a message, by overhearing each of them broadcast the message or an acknowledgement of it, it does not need to rebroadcast the message itself as it will not reach any additional nodes that the others cannot already.
+This could prevent some excess broadcasts and reduce the load on the network, although it would add a large degree of complexity to the protocol and require careful negotiation between the nodes.
+Not only would each node need to keep track of what nodes around it have received the message, it must also know that there are no other nodes present that have not yet.
+This could be accomplished by overhearing other protocols that would likely be utilized in VANETs, such as range-finding and movement negotiations.
+However, it is still difficult to say with certainty whether another node has entered one's broadcast radius or not.
+
+We also considered adjusting the time between rebroadcasts, and even the actual number of rebroadcasts, based on the local node density of the network.
+Our simulation results indicate that event data can be disseminated far quicker with higher traffic densities due to the decreased space between each vehicle.
+This indicates that some parameters might be relaxed in order to decrease the number of messages in the network and frequency of rebroadcasting while still maintaining the same dissemination speed.
+
+Although we did not consider utilizing dedicated infrastructure in our system, it could certainly be used for improvements.
+If a VANET-equipped road has a series of radio towers along it to aid communication between the vehicles, they could be used to more rapidly spread information without adding load to wireless channel.
+By using higher-powered road-side antennae, each tower could cover more vehicles in a shorter amount of time than ad-hoc communications.
+Furthermore, the towers could pass the message further back the road to reach vehicles coming towards the crash by communicating with each other either wirelessly or through a wired link.
+A cellular network could be used in a similar manner, although, as previously discussed, the latency on cellular towers makes them less suitable for our particular application.
+Even so, they might be used to notify a large area of vehicles about the event and perhaps stop the ad-hoc dissemination of it once the dedicated infrastructure becomes aware and can take over the dissemination process.
+A combination of all three (ad-hoc, road-side, and cellular) networks may also prove to be the most effective and flexible when properly managed.
+
+\subsection{Other Applications}
+
+While our technique was intended for detection of and notification about crash events in VANETs, it could be applied in other domains as well.
+For example, it could be used for notification of other impending hazards, such as road debris, weather, or simply traffic congestion.
+Some modifications to the protocol details could make it suitable for exchanging basic information as well.
+For example, our method of aggregating messages could be used to efficiently determine the approximate speed of traffic and negotiate which vehicles should be in which lane and how fast for them to travel.
+It could also be used to notify very close vehicles (perhaps with a TTL of 2 or 3 hops) about one's intentions, such as changing lanes or making turns.
+
+In addition to VANETs, this protocol might be applied in other areas, such as wireless sensor networks.
+Indeed, we discussed how data aggregation is often used in this domain, especially for the purpose of reducing power consumption.
+One can envision a system in which sensor devices and/or sinks only have intermittent connections, either due to movement or perhaps powering down their radios and only periodically coming on-line to listen for any interesting data.
+In this case, the application of staggered repeated broadcasts may help ensure data delivery and even reduce power consumption if the nodes effectively coordinated.
+
+Outside of the wireless domain, our protocol might find use in a peer-to-peer system.
+By using the technique of staggered rebroadcasting, peers might send some important information to nodes that either join the network or move around within it.
+This could help to address the issue of churn that is so common in these systems, ensuring that each node is aware of the pertinent data and allowing them to more efficiently distribute it as more pieces become known through aggregation.
+
 
 \bibliographystyle{IEEEtran}
 \bibliography{project_report}
