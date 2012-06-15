@@ -31,22 +31,25 @@ We show our technique's efficacy through simulation in NS-3 \cite{ns3}.
 
 Our problem of interest is distributed event detection in wireless sensor networks. Specifically, we are interested in detecting vehicle crash events in vehicular ad hoc networks (VANETs).
 When a vehicle is in any kind of collision it will affect both nearby vehicles and vehicles that may be rapidly approaching the crash site.
-Therefore, warning these other vehicles about such an event could enable them to take immediate evasive actions to mitigate the possibility of another crash.
-Each vehicle that witnesses the crash, as well as the one(s) involved in it, should each take part in notifying others so that as much detail about the nature of the event and possible affects can be cataloged as possible.
-Because many vehicles may be present during such an event, they may flood the wireless channel with information if it is not properly aggregated and disseminated to possibly affected entities.
+Therefore, warning these other vehicles about such an event could enable them to take immediate evasive actions to mitigate the possibility of another crash. 
+Each vehicle that witnesses the crash, as well as the one(s) involved in it, should each take part in notifying others so that as much detail about the nature of the event can be cataloged as possible. Primarily, we are concerned with authenticity. 
+Because many vehicles may be present during such an event, they may flood the wireless channel with duplicated information if it is not aggregated. Most aggregation schemes incur some delay on transmission in order to ensure to optimally reduce channel contention. In our scheme, such a delay could be life threatening as dissemination to the closest entities int he most danger must be expedited. 
 
-We developed a protocol in which nodes broadcast aggregated packets to nearby nodes in order to forward them along to parts of the network that haven't yet been notified.
-This quickly disseminates data about the event occurrence to vehicles that may be affected by the collision, whether from extra traffic congestion or possible road hazards/debris.
+We developed a protocol that can appropriately deal with these competing goals. Nodes broadcast packets about the crash as the first packet arrives, but attempt to aggregate data as it comes available.
+This approach quickly disseminates data about the event occurrence to vehicles that may be affected by the collision, whether from extra traffic congestion or possible road hazards/debris.
 At the same time, messages from different participants that witnessed the crash are aggregated together into a single packet, while still preserving information about which nodes detected the crash.
-This decreases overall bandwidth consumption while still delivering the same information about crash witnesses and potential dangers.
-By exploiting mobility patterns of VANETs, our protocol quickly covers nearby nodes with this information in a variety of traffic conditions, as will be shown in the discussion about simulation results.
+Nodes can then make an informed decision on how to react when approaching the crash site, even with only a small fraction of the total information generated from the collision event.
+In the long run, vehicles far enough away will gather all information, including witness reportings, with low overall overhead
+Our protocol allows for even initially unreachable nodes to quickly gather this information. To do this we exploit mobility patterns of VANETs,  in a variety of traffic conditions, as will be shown in the discussion about simulation.
 
-As an additional consideration, security also becomes an important issue in this scenario.
+As an additional consideration, authenticity also becomes an important issue in this scenario.
 Detection of an event may have real world repercussions, such as causing vehicles to reroute or completely stop and so our protocol must ensure that no attacker can fake a crash event in order to cause such a reaction.
 We briefly catalog known attacks of this type and discuss possible protections against them as well as how our protocol takes them into consideration.
+Primarily, we rely on the unforgable  crash statistics from both collision victims, and witnesses. 
 
 The remainder of the paper is structured as follows.  The second section discusses related works in data aggregation and dissemination.
-In the third section, we discuss our protocol in detail.  We present our simulation environment and results from the tests on it in the fourth section.
+In the third section, we discuss briefly general security concerns.
+In the fourth section, we discuss our protocol in detail. In the fifth section We present our simulation environment and results from the tests on it in the fourth section. 
 In the final section, we conclude with a discussion about applications and future work.
 
 \section{Related Work}
@@ -55,47 +58,12 @@ In this section, we present several works related to ours in the domains of data
 
 \subsection{Data Aggregation}
 
-In the domain of wireless sensor networks, much recent research has focused on developing aggregation schemes to minimize the amount of power consumed by radio transmissions in order to extend the life expectancy of power-constrained devices that typically rely on batteries.
-Many approaches focus on minimum spanning trees (MST) or similar structures because this will require the minimum amount of total power across the whole network.
-As shown in \cite{heuristic}, this is because the power required to transmit a radio message is directly proportional with the distance between the nodes.
-If sensor nodes can decrease the power of their radios to reach the next hop with minimal energy spent, the MST will give the optimal aggregation of data.
-
-In addition to decreasing energy consumption, these approaches can also be used to reduce communication overhead, thereby freeing up bandwidth for other important messages.
-This becomes particularly important in VANETs where the vehicles are envisioned as constantly communicating detailed information with each other.
-Here, we discuss aggregation techniques applied to two possible topologies: static and dynamic (mobile nodes).  The latter is likened to VANETs.
-
-\subsubsection{Static Topologies}
-
-In \cite{heuristic}, the minimum-energy aggregation problem is solved by creating a MST in the network that has constraints on the maximum degree of any one node and the maximum number of hops from any node to the sink.  The degree and hop bounds are in place because too high of a degree would put too much load on an individual node and too many hops would require too long for the information to reach the sink.
-As the determination of these optimal structures is NP-hard, this paper proposes several heuristics for approximating them.  One of these heuristics, which was determined the best of the proposed three by their simulation results, iteratively builds the MST by adding the next node whose edge has the least weight (power consumption) as long as it doesn’t violate any of the constraints.
-If it will, the node is joined to a different parent whose incident edge weight may be higher (thereby making the spanning tree only an approximate MST) but who does satisfy the degree and hop constraints.  If no such parent exists, the parents are recursively checked for the possibility of choosing a new parent for them such that the constraint on the original node can be satisfied.
-
-Another problem which is important in Wireless Sensor Network(WSN) is to schedule the aggregation\cite{DDAS}. The problem is if a node hears two messages at the same time then it can not receive the messages because of message interference. Therefore, in a given graph (V, E), we need to find the schedule which consists of n sets of vertices $S_i$ which satisfies the following properties:
-\begin{itemize}
-\item $S_i \cap S_j = \emptyset, i \neq j$
-\item $\cup_{i=1,n} = V - \{r\}$
-\item Data are aggregated from $S_k$ to $V - \cup_{i=1,k}S_i$.
-\end{itemize}
-To solve this problem, we use the leader election \cite{LeaderElection} algorithm to build the rooted spanning tree. Based on that we will distributed rank each node based on its level(how far from the root) and its identity. Along the computation, we will compute the number of lower-ranked neighbors for each node. Using the computed information, we will build connected dominating set(CDS)\cite{CDS}.
-Building CDS is the crucial step in different algorithms including the aggregation scheduling problem as it is considered the virtual backbone or spine of wireless ad-hoc network. Finally, we construct the schedule with linear time latency bound on network diameter and maximum node degree.
-
-The above methods consider data aggregation in the network but do not address the issue of time-constrained data transmission.  The authors of \cite{time} address this problem by setting a deadline by which all of the aggregated data should reach the sink.  This deadline is propagated towards the leaf nodes, with each intermediate aggregating node setting its deadline as a function of the number of nodes represented by the aggregated packets it will receive.
-Aggregation takes place when either all of the child nodes send their information or the timer expires, thereby ignoring any data not received by this deadline.  This deadline is increased over time but is decreased if the sink does not receive the aggregated messages in time.  In this manner, the timers will converge over time to a point at which the sink’s deadline is respected but the preceding deadlines are late enough to maximize the number of nodes whose data is received by the sink.
-The sink must therefore choose a deadline that allows every node in which it is interested to have its data aggregated.  Otherwise, it may misjudge the actual state of the environment being monitored.  Such a scheme is particularly important in time-sensitive applications, such as in VANETs where aggregated information may prevent dangerous crashes.
-
-\subsubsection{Dynamic Topologies}
-
-Some previous works build structures similar to MSTs but focus more on the ability of wireless sensors to broadcast data across an entire region, which may change as the network topology evolves.
+Some previous work focuses on the ability of wireless sensors to broadcast data across an entire region, which may change as the network topology evolves.
 A common approach is to cluster nodes and elect leaders for these clusters so that each of the nodes can send their data to the leader, which will then aggregate these packets and send them towards the sink.  This allows a subset of the nodes to transmit messages at longer ranges so that the other nodes can conserve power.  Some such methods also allow for non-static topologies in which nodes may move, join, or leave the network.
 
 The authors of \cite{sct} use the above approach to propose a system that allows for changing the aggregation node so as to distribute the burden of increased power consumption that comes from holding this role as well as tolerate mobile nodes.  The network is broken into a number of concentric rings and sectors within those rings based on the density and size of the network.
 Nodes within each sector transfer their data to the node closest to the center of this sector so it can be aggregated and transferred to the next inner ring. The aggregated messages continue to be further aggregated and forwarded, eventually reaching the inner-most ring where they are received by the sink.
 By varying the locations of these sectors and rings, different aggregation nodes can be chosen and mobile nodes can be followed so as to maintain a balanced number of nodes within each sector.  This balance is particularly important in mobile networks as changing node densities could cause issues of scalability in a static structure.
-
-While the previously mentioned data aggregation methods build a structure over which communication is carried out, \cite{flow} takes an unstructured approach. Here a technique deemed “Flow Updating” is used to perform both broadcast- or gossip-based aggregation without the need of a spanning tree. Here aggregation functions are calculated by exploiting the symmetry of flows in the network.
-Flows in this context represent portions of the total aggregate value, rather than representing the capacity of an edge as in the traditional graph setting. A node’s local calculation is based entirely on its initial state, and the flow entering the node. Nodes can update their flows with one another either by broadcasting to their neighbors, or using random unicast (gossip).
-The authors show that this converges considerably faster than older structured approaches. The key idea is that as flows are updated throughout the course of the algorithm, because of directional symmetry, the total aggregate value does not change. 
-Furthermore, flow updating messages are idempotent, a new message simply replaces an old flow with the new value. Because of this idempotence, Flow Updating has good convergence properties, even in the event of link failure. Unfortunately, this method still relies on a static topology, and many rounds of updates, and would not work well with mobile nodes. Furthermore, the authors mention little about calculating aggregate functions that are not based on sum.
 
 Authors in \cite{landmark} describe a technique for aggregating and disseminating travel times in VANETs. Their protocol performs hierarchical aggregation based on the distance from the origin of the data, in this case traffic times of a specific route. The intuition is that nodes physically further away from the origin receive coarser versions of the data. As a vehicle approaches the location, finer-detailed information becomes available so that it may plan a specific route. Nodes in the network share information via broadcast, but aggregate timings according to a hierarchy.
 
@@ -128,12 +96,9 @@ Then, the selected node sends a random chunk to the requester node. This approac
 
 Delay Tolerant Networks (DTNs) are new network structures composed of different nodes connected in an ad-hoc fashion. Packet delivery in such networks are based on the best effort model. In which, a node broadcasts the packets it receives to all its neighbor hoping that they will eventually be delivered to their destination, even if an intermediate node must wait for a network connection to be established with the next hop.
 
-On the other hand, a data dissemination protocol for DTNs, Habit is proposed in \cite{habit}. It is to build two directed graphs and share them among all the nodes in the DTN network. The first graph is called the regularity graph which models the physical connections among DTN nodes, and the second graph is called the interest graph which models the shared interests between the nodes.
-All the nodes in the network share their information about other nodes in order to build an approximate vision of the full graphs of the network. When a node has a message or content to disseminate, it consults with the network representation that it has in order to obtain the shortest paths that the content should traverse to all interested node.
-
-Content dissemination in mobile ad-hoc networks (MANETs) is quite different than in static environments described earlier.
+Content dissemination in mobile ad-hoc networks (MANETs) is quite different than in static environments.
 Patterns of interspersed network connectivity and mobility can be exploited to facilitate the spread of information.
-VANETs are a special case of MANETs in which the nodes are assumed to move in relatively straight lines, at similar speeds, and with another group of nodes usually travelling in the opposite direction very nearby.
+VANETs are a special case of MANETs in which the nodes are assumed to move in relatively straight lines, at similar speeds, and with another group of nodes usually traveling in the opposite direction very nearby.
 These specific characteristics are leveraged in \cite{vanet_dissem} to develop, compare, and contrast different techniques for dissemination of aggregated data in VANETs.
 
 This particular work advocates for forwarding of messages through a broadcast mechanism as opposed to a unicast to a neighbor of the node.  This is because the data about many vehicles within the network that are close to each other is aggregated together so the broadcast storm problem is mitigated by only having a subset of the vehicles disseminate this information throughout the local network.  The authors consider three different schemes for forwarding this information:
@@ -147,6 +112,27 @@ This particular work advocates for forwarding of messages through a broadcast me
 By simulating a VANET environment,  the authors discovered that the second technique works best for their scenario.  This is because they aggregate exact locations of vehicles on the road, compressing their coordinates in order to fit within a single message.  This results in more information contained within each message and therefore more lossy compression is required.
 By exploiting the mobility of the traffic moving in the opposite direction, these messages can be ferried more quickly and so contain less information, thereby requiring less compression.
 In actuality, the bi-directional approach is more suitable if less accurate vehicle locations are tolerated because there are more avenues through which the messages can be forwarded, more intermediate nodes whose data can be aggregated into eachessage, and the compression does not affect the desired data quality.
+
+\section{Security Concerns}
+
+While we deal with one type of safety-related message. Security in safety messages in VANETs is a well researched area. Our protocol could fall victim to many of these concerns if the proper hardware/algorithms are not in place. We briefly detail the possible problems in regards to our protocol, but their solutions are out of the scope of this paper. In the next paragraphs, we will describe different types of attacks on VANETs \cite{SecurityVANET, SecurityWSN}.
+
+In this section, we will describe different attacks on VANETs. The attacks are classified according to the following criteria:
+\begin{itemize}
+\item Membership: Insider(I)/Outsider(O)
+\item Motivation: Malicious(M)/Rational(R)
+\item Method: Active(A)/Passive(P)
+\item Scope: Local(L)/Extended(E)
+\end{itemize}
+For each attack we will use the following notation: Membership.Motivation.Method.Scope, e.g., I.M.A.L. means that the adversary is an insider, behaves maliciously and mounts an active attack in a local area.
+
+\begin{itemize}
+\item \emph{Jamming attack:} In this attack, the adversary wants to interfere with radio transmission. One simple jamming attack is the adversary continuously sends radio signal on a valid channel, thus preventing the legitimate vehicle from sending the radio signal. This is O.M.A.L.
+\item \emph{Tunnel attack:} This attack exploits the fact the GPS is disabled when the vehicle is going through the tunnel. The adversary can send fake information of GPS to the vehicle when it leaves the tunnel. This attack works as GPS is not authenticated. This is O.M.A.L attack.
+\item \emph{Wormhole attack:} This is a collusion attack when we have 2 vehicles far apart but have a fast communication channel. The message from one vehicle is tunneled to another remote vehicle then the remote vehicle broadcasts the message. This way, an authenticated message is broadcast to another location. Essentially, there is a wormhole between 2 vehicles which helps broadcast a message to another location far apart. This is an I.M.A.E attack.
+\end{itemize}
+
+To prevent such attacks we need a system that provides secure location data. We assume such a system is in place. Primarily we are concerned with authentication of messages generated by a Trusted Platform Module (TPM)
 
 \section{Proposed Protocol}
 
@@ -171,10 +157,10 @@ First, we of course assume that a fleet of vehicles have all been equipped with 
 These vehicles may or may not be autonomous, as such a system could also be used to warn drivers of upcoming road hazards and aid in safely navigating passed them.
 Second, to facilitate crash event detection, the sensor inputs, such as video and radar, are assumed to be enough information to intelligently determine that a crash has taken place nearby the vehicle.
 While the details of actually implementing such event detection is outside of the scope of this paper, we envision it to involve computer vision and machine learning algorithms that associate sudden changes in motion of nearby vehicles to a likely crash event.
-Third, for the purpose of preventing spoofed crash data, we assume that the vehicle sensors are secure and tamper-proof.
-When they detect that the vehicle has crashed, similar to the way airbag sensors work currently, they must generate unforgeable data that can be authenticated by other vehicles that overhear it during transmission.
-This raw crash data is assumed to be included in a message from the victim as a means of guaranteeing the authenticity of an event.
-Without such sensors, the security of this system is in jeopardy as it relies solely on the participants' honesty for detecting only real events.
+Third, to enforce authenticity of crash data, we assume that the vehicle sensors are secure and tamper-proof, this requires the use of at least one Trusted Platform Module.
+When they detect that the vehicle has crashed, similar to the way airbag sensors work currently, they must generate unforgeable data that can be authenticated by other vehicles that overhear it during transmission, via public key cryptography.
+This signed raw crash data is assumed to be included in a message from the victim as a means of guaranteeing the authenticity of an event. The same hardware restrictions are applied to the witnesses as well.
+Without such sensors, the security of this system is in jeopardy as it relies solely on the participants' honesty for detecting only real events. As mentioned in the security concerns, we also assume that a secure GPS exists. 
 
 \subsection{Dissemination}
 
@@ -218,12 +204,14 @@ Each message, including the originals, will include the ID of the vehicles that 
 Because each vehicle that witnesses the crash begins disseminating messages, there could be a large number of duplicate messages detecting the same event that are treated as distinct for the purposes of forwarding.
 This is where data aggregation improves the efficiency of the system.
 
-\subsection{Aggregation}
 
-Instead of allowing each original message to be disseminated separately, we decided to aggregate them together into a single message whenever possible.
-This saves a lot of network overhead by greatly reducing the number of packets that must be transmitted to disseminate the same information.
-When a node receives more than one message that pertains to the same crash (as identified by the victim ID), the IDs of the witnesses are combined together into a single packet before forwarding.
-In this way, each packet contains a subset of IDs corresponding to nodes that witnessed or participated in the event.
+\subsection{Authenticity \& Aggregation}
+
+In order to enforce authenticity we enforce that each message be signed by a TPM using some form of public key. Each participant in an accident, both victim and witnesses must sign all information regarding accident time and location. When these signatures are collected, an endangered vehicle can make an educated decision depending upon the amount of trust in each message. A message may be untrusted for many reasons, but primarily one may be concerned with an untrustworthy key. Possibly gathered from TPM failure. Thus, a node has the highest level of security when all information from a crash is known. Instead of allowing each original signed message to be disseminated separately, we aggregate them into a single message whenever possible. We rely on signature chaining in order to maintain the same level of trust with just a single message. This technique can be used to aggregate any type of information, not just digital signatures.
+
+Aggregation of this form saves a lot of network overhead by greatly reducing the number of packets that must be transmitted to disseminate the same information.
+When a node receives more than one message that pertains to the same crash (as identified by the victim ID), the IDs of the witnesses are combined together into a single packet before forwarding. Along with the ID's the signatures are also forwarded along.
+In this way, each packet contains a subset of IDs corresponding to nodes that witnessed or participated in the event, along with their signature of the event specifics.
 When a node receives such a packet, it may learn more than one ID as compared to only learning one without any aggregation.
 
 In the case of multiple rebroadcasts, nodes will continuously update the packet they are broadcasting during each interval.
@@ -287,47 +275,6 @@ As time progresses, the message coverage curves for the three traffic density ca
 Moreover, it can be noticed that the cases where heavy traffic exists have smoother message coverage curve due to the presence of a lot of vehicles close to each others.
 Thus vehicles carrying the message do not need to travel for very long before coming into the vicinity of other vehicles to transfer the message to.
 
-
-
-\section{Security Concerns}
-
-In VANETs, the safety messages including traffic information messages (e.g. traffic condition), general safety-related messages (e.g. collision avoidance) and liability-related messages (e.g.when accidents happen) are critical to the security of drivers, their physical safety, and law enforcement. Therefore, VANET’s security should be considered at the design phase, rather than ad-hoc fixes after deployment. In the next paragraphs, we will describe different types of attacks on VANETs \cite{SecurityVANET, SecurityWSN} and security requirements to prevent such attacks.
-
-\subsection{Attacks on VANET}
-
-In this section, we will describe different attacks on VANETs. The attacks are classified according to the following criteria:
-\begin{itemize}
-\item Membership: Insider(I)/Outsider(O)
-\item Motivation: Malicious(M)/Rational(R)
-\item Method: Active(A)/Passive(P)
-\item Scope: Local(L)/Extended(E)
-\end{itemize}
-For each attack we will use the following notation: Membership.Motivation.Method.Scope, e.g., I.M.A.L. means that the adversary is an insider, behaves maliciously and mounts an active attack in a local area.
-
-\begin{itemize}
-\item \emph{Jamming attack:} In this attack, the adversary wants to interfere with radio transmission. One simple jamming attack is the adversary continuously sends radio signal on a valid channel, thus preventing the legitimate vehicle from sending the radio signal. This is O.M.A.L.
-\item \emph{Hidden vehicle:} This attack works as follows: whenever a vehicle broadcasts a warning message, the adversary will pretend to be in a better position to broadcast the message. Thus the message originator would stop broadcasting message to save traffic. The adversary in turn doesn’t broadcast the warning message further. Basically, the origin of the warning message is hidden by the adversary. This is O.M.A.L attack.
-\item \emph{Tunnel attack:} This attack exploits the fact the GPS is disabled when the vehicle is going through the tunnel. The adversary can send fake information of GPS to the vehicle when it leaves the tunnel. This attack works as GPS is not authenticated. This is O.M.A.L attack.
-\item \emph{Wormhole attack:} This is a collusion attack when we have 2 vehicles far apart but have a fast communication channel. The message from one vehicle is tunneled to another remote vehicle then the remote vehicle broadcasts the message. This way, an authenticated message is broadcast to another location. Essentially, there is a wormhole between 2 vehicles which helps broadcast a message to another location far apart. This is an I.M.A.E attack.
-\item \emph{Bush telegraph attack:} This attack exploits the fact that if in every step there is a small error then in the end, the result would be totally different. The idea is if the error in each step is small, i.e., within the tolerance threshold then the neighbor would accept it. To implement this attack, the adversary needs to compromise a set of vehicles. This is I.M.A.L attack.
-\item \emph{Sybil attack:} In this attack, a compromised vehicle claims multiple fake identities. This way, he can create fake positions, attract all the messages to him, etc. This is I.M.A.L.
-\end{itemize}
-
-\subsection{Security requirements for VANET}
-
-To prevent the attacks described above, the following security requirements are needed:
-\begin{itemize}
-\item \emph{Authentication:} The sender identity must be authenticated as well as the sent messages.
-\item \emph{Message Integrity:} There must be a mechanism to prevent(or detect) message’s integrity, i.e., detect the change of message by unauthorized vehicle.
-\item \emph{Availability:} VANET must have the capability to prevent denial-of-service attack.
-\item \emph{Non-repudiation:} The sender can not deny the message that he sent.This is really important in case of accidents, i.e., the vehicle that causes the accidents can not deny its responsibility.
-\item \emph{Privacy:} This is really important as the drivers do not want the companies or govenment to trace all of his sent messages or locations.
-\end{itemize}
-Designing VANET to satisfy all the described security requirement is not a simple task. However, the fundamental step toward the security of VANET is to have a secure tamper resistant hardware to authenticate the vehicle and to sign the message by private key. Due to space constraints, we will not go into detailed solutions for all the listed security attacks. Instead, we will describe a solution for the authenticating disseminated data which is relevant to our project.
-
-Itani et al. proposed in \cite{slow}, a Secure Bundle protocol, Sec-Bundle, to authenticate disseminated data sent through the networks. The proposed protocol is based on using an authentication structure, called a Bloom filter \cite{bloomF}. Such structure is used to verify the membership of a set of elements. In other words, using a Bloom filter, it is feasible to verify if a specific element belongs to a set or not. First, the source feeds all the data chunks in the Bloom filter, signs it with its private key using Identity-Based Encryption (IBE), and disseminates it. When an intermediate node, say a router, receives a data chunk, it compares it against the membership structure to see if it belongs to the set or not. If yes, the chunk is forwarded to the next hop, or dropped otherwise. Membership verification at intermediate nodes level is beneficial to drop bogus packets as soon as possible. The wireless link on which such packets are injected is the only link that carry them. The previous authenticated 
-dissemination protocol can be used as a base infrastructure to address our problem.
-
 \section{Conclusion}
 
 In this paper, we proposed a secure method for quickly aggregating and disseminating information about crash events in VANETs.
@@ -346,7 +293,7 @@ Not only would each node need to keep track of what nodes around it have receive
 This could be accomplished by overhearing other protocols that would likely be utilized in VANETs, such as range-finding and movement negotiations.
 However, it is still difficult to say with certainty whether another node has entered one's broadcast radius or not.
 
-We also considered adjusting the time between rebroadcasts, and even the actual number of rebroadcasts, based on the local node density of the network.
+We also considered adjusting the time between rebroadcasts, and even the actual number of rebroadcasts, based on the local node density of the network, and the proximity to the crash event.
 Our simulation results indicate that event data can be disseminated far quicker with higher traffic densities due to the decreased space between each vehicle.
 This indicates that some parameters might be relaxed in order to decrease the number of messages in the network and frequency of rebroadcasting while still maintaining the same dissemination speed.
 
