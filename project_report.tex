@@ -5,6 +5,8 @@
 \usepackage{multirow}
 \usepackage{rotating}
 \usepackage{flushend}
+\usepackage{multicol}
+
 
 \begin{document}
 
@@ -210,6 +212,47 @@ Therefore, if a node learns of another witness, or learns the ID of any crash vi
 This does not mean that the counter of how many rebroadcasts should be sent is reset, however, as this could prolong the life of the message to a wasteful point.
 In this manner, forwarded messages typically contain only one or a small number of IDs initially.
 As the message propagates further, aggregation will take place and each message will tend to contain more information about the event.
+
+
+\section{Simulation and Results}
+In this section of the report we will describe the implementation of the proposed protocol and simulate it using NS3 [NS3\_Reference]. We used NS3 to simulate the proposed crash model and measure some performance parameters. A set of classes are integrated with NS3 to simulate the existence of a highway with several lanes and vehicles driving on it. The mobility model used in our experiment is the highway mobility model provided by NS3. Basically, vehicles are created and initiated to drive on the highway at a starting point and with some velocity constraints such as minimum and maximum allowed speed. The existed model was very basic where vehicles are mostly driving the same speed and on the same lane, which renders it unrealistic. We improved this model by adding some randomness of the vehicles speed limits and allow them to by pass each others by driving on different lanes.
+
+We also add the existence of the crash event. We initialize the simulation with two additional parameters, the crash vehicle and the time of the crash. The first parameters specifies the ID of the vehicle that will crash at a time specified by the second parameter. When a crash happens, the specified vehicle will stop and start sending "being in crash" messages and the neighbor vehicles will start disseminating the event information to the rest of the network.
+
+It is worth mentioning that at each time step of the simulation, we write the position of each vehicle and the messages transferred to log files so we can verify the correctness of the implementation. The vehicle positions log file is used to feed a Java-based tool to vitalize the highway with all the vehicles driving on it during the whole simulation time. The other one, the transferred messages log file, is used to verify the validity of the dissemination and aggregation techniques used in our proposed protocol. We were able to visualize that the predefined vehicle is really having a crash and all other vehicles are successfully by passing it.
+
+\noindent
+\begin{figure}[h]
+\centering
+\includegraphics[scale=0.32]{Figure_01.png}
+\caption{Broadcast storm versus selective broadcast}
+\label{fig_storm_nostorm}
+\end{figure}
+
+Figure~\ref{fig_storm_nostorm} shows a comparison between the two cases of using broadcast storm and selective broadcast. We notice that in the case of using selective broadcast, the number of packets transferred in the network starts decreasing after 20 seconds of the simulation begins. The reason is because most vehicles have already received the crash message and start ignoring all message that are already received. On contrary, vehicles that use broadcast storm keeps on forwarding crash messages even if they already received the same messages before, this explains why after 20 seconds of the simulation begins, these vehicles keep on forwarding messages.
+
+\noindent
+\begin{figure}[h]
+\centering
+\includegraphics[scale=0.32]{Figure_02.png}
+\caption{Aggregation versus non-aggregation}
+\label{fig_aggregation_nonaggregation}
+\end{figure}
+
+Figure~\ref{fig_aggregation_nonaggregation} illustrate the case where vehicles use aggregation versus not using aggregation. It can be noticed that the number of messages sent when aggregation is not present is approximately three times more the number of messages sent when aggregation is used.
+
+\noindent
+\begin{figure}[h]
+\centering
+\includegraphics[scale=0.45]{Figure_03.png}
+\caption{Message coverage over time}
+\label{fig_msg_coverage}
+\end{figure}
+
+In Figure~\ref{fig_msg_coverage} we demonstrate the different dissemination patterns when low, medium and heavy traffic are present. It can be noticed that after roughly $25$ seconds of the simulation begins, all of the vehicle that are suppose to receive the crash message have already received it. At time $0$ second, or right after the simulation begins, we can notice that $50\%$ of the vehicles have received the crash message in heavy traffic case whereas only $30\%$ of them received the message in low and medium traffic. It is worth mentioning that the vehicles receiving the messages are the ones that are close to the crash area which means that the more the recipients are, the better the locality of the dissemination is. As time progressing, the message coverage curves for the three traffic density cases start the converge together. Moreover, it can be noticed that the case where heavy traffic exists have smoother message coverage curve due the presence or a lot of vehicles close to each others, thus vehicles carrying the message do not need to travel for some time to get into the vicinity of other vehicles to transfer the message to.
+
+
+
 
 \section{Security Concerns}
 
